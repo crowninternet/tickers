@@ -72,12 +72,20 @@ check_template() {
 detect_storage() {
     print_status "Detecting available storage for containers..."
     
+    # Get all available storage
+    print_status "Available storage options:"
+    pvesm status --type dir,thin,lvm,zfs | while read line; do
+        if [[ "$line" =~ ^(local|local-lvm|local-zfs|local-thin) ]]; then
+            echo "  $line"
+        fi
+    done
+    
     # Get available storage that supports containers
-    local available_storage=$(pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs)' | awk '{print $1}' | head -1)
+    local available_storage=$(pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs|local-thin)' | awk '{print $1}' | head -1)
     
     if [[ -n "$available_storage" ]]; then
         STORAGE="$available_storage"
-        print_success "Detected storage: ${STORAGE}"
+        print_success "Auto-detected storage: ${STORAGE}"
     else
         print_warning "Could not auto-detect storage. You'll need to specify manually."
         STORAGE=""
@@ -123,19 +131,35 @@ get_user_input() {
     fi
     
     # Storage Configuration
+    echo
+    print_status "Storage Configuration:"
+    if [[ -n "$STORAGE" ]]; then
+        print_status "Auto-detected storage: ${STORAGE}"
+        read -p "Use detected storage? (Y/n): " use_detected
+        if [[ "$use_detected" =~ ^[Nn]$ ]]; then
+            STORAGE=""
+        fi
+    fi
+    
     if [[ -z "$STORAGE" ]]; then
         print_status "Available storage options:"
-        pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs)' | awk '{print "  " $1 " - " $2 " (" $3 ")"}'
+        pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs|local-thin)' | awk '{print "  " $1 " - " $2 " (" $3 ")"}'
         echo
-        read -p "Enter Storage (e.g., local-lvm): " STORAGE
-        if [[ -z "$STORAGE" ]]; then
-            print_error "Storage is required"
-            exit 1
-        fi
-    else
-        read -p "Enter Storage (default: ${STORAGE}): " input_storage
-        STORAGE=${input_storage:-$STORAGE}
+        while [[ -z "$STORAGE" ]]; do
+            read -p "Enter Storage name (e.g., local-lvm): " STORAGE
+            if [[ -z "$STORAGE" ]]; then
+                print_error "Storage name is required"
+            else
+                # Validate storage exists
+                if ! pvesm status | grep -q "^${STORAGE} "; then
+                    print_error "Storage '${STORAGE}' does not exist"
+                    STORAGE=""
+                fi
+            fi
+        done
     fi
+    
+    print_success "Selected storage: ${STORAGE}"
     
     # Resource Configuration
     read -p "Enter Memory (default: ${MEMORY}): " input_memory
