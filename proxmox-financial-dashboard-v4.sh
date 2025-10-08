@@ -196,6 +196,43 @@ get_user_input() {
     fi
 }
 
+# Function to fix LVM thin pool issues
+fix_lvm_thin_pool() {
+    if [[ "$STORAGE" == "local-lvm" ]]; then
+        print_status "Checking LVM thin pool status..."
+        
+        # Check if thin pool is in read-only mode
+        local lv_status=$(lvdisplay pve/data 2>/dev/null | grep "LV Write Access" | awk '{print $4}')
+        if [[ "$lv_status" == "read/write" ]]; then
+            print_success "LVM thin pool is writable"
+            return 0
+        fi
+        
+        print_warning "LVM thin pool is in read-only mode, attempting to fix..."
+        
+        # Try to reactivate the thin pool
+        if lvchange -ay pve/data 2>/dev/null; then
+            print_status "LVM thin pool reactivated"
+        else
+            print_warning "Could not reactivate LVM thin pool automatically"
+        fi
+        
+        # Check status again
+        sleep 2
+        local lv_status_after=$(lvdisplay pve/data 2>/dev/null | grep "LV Write Access" | awk '{print $4}')
+        if [[ "$lv_status_after" == "read/write" ]]; then
+            print_success "LVM thin pool is now writable"
+            return 0
+        else
+            print_warning "LVM thin pool is still in read-only mode"
+            print_status "This may cause container creation to fail"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
 # Function to check storage space
 check_storage_space() {
     print_status "Checking storage space..."
@@ -228,6 +265,11 @@ check_storage_space() {
 create_container() {
     print_status "Creating container ${CONTAINER_ID}..."
     
+    # Fix LVM thin pool issues if using local-lvm
+    if ! fix_lvm_thin_pool; then
+        print_warning "LVM thin pool issues detected, but continuing..."
+    fi
+    
     # Check storage space first
     if ! check_storage_space; then
         print_error "Storage space check failed"
@@ -240,7 +282,16 @@ create_container() {
     create_cmd="${create_cmd} --password ${ROOT_PASSWORD}"
     create_cmd="${create_cmd} --memory ${MEMORY}"
     create_cmd="${create_cmd} --cores ${CPU_CORES}"
-    create_cmd="${create_cmd} --rootfs ${STORAGE}:${DISK_SIZE}"
+    
+    # Handle different storage types
+    if [[ "$STORAGE" == "local-lvm" ]]; then
+        # For LVM thin, use the format that works
+        create_cmd="${create_cmd} --rootfs ${STORAGE}:${DISK_SIZE}"
+    else
+        # For other storage types
+        create_cmd="${create_cmd} --rootfs ${STORAGE}:${DISK_SIZE}"
+    fi
+    
     create_cmd="${create_cmd} --net0 name=eth0,bridge=${BRIDGE}"
     
     # Add IP configuration if provided
