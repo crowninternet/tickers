@@ -301,7 +301,7 @@ create_container() {
             create_cmd="${create_cmd},gw=${GATEWAY}"
         fi
     else
-        create_cmd="${create_cmd},dhcp=1"
+        create_cmd="${create_cmd},ip=dhcp"
     fi
     
     # Add DNS servers
