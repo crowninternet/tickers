@@ -145,8 +145,13 @@ get_user_input() {
         print_status "Available storage options:"
         pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs|local-thin)' | awk '{print "  " $1 " - " $2 " (" $3 ")"}'
         echo
+        print_status "Storage recommendations:"
+        print_status "- 'local' (directory): Most compatible, works on all systems"
+        print_status "- 'local-lvm' (LVM): Better performance, requires LVM setup"
+        print_status "- 'local-zfs' (ZFS): Advanced features, requires ZFS setup"
+        echo
         while [[ -z "$STORAGE" ]]; do
-            read -p "Enter Storage name (e.g., local-lvm): " STORAGE
+            read -p "Enter Storage name (recommended: local): " STORAGE
             if [[ -z "$STORAGE" ]]; then
                 print_error "Storage name is required"
             else
@@ -191,9 +196,43 @@ get_user_input() {
     fi
 }
 
+# Function to check storage space
+check_storage_space() {
+    print_status "Checking storage space..."
+    
+    # Get storage info
+    local storage_info=$(pvesm status | grep "^${STORAGE} ")
+    if [[ -z "$storage_info" ]]; then
+        print_error "Storage ${STORAGE} not found"
+        return 1
+    fi
+    
+    # Extract available space (column 4)
+    local available_space=$(echo "$storage_info" | awk '{print $4}')
+    print_status "Available space on ${STORAGE}: ${available_space}"
+    
+    # Check if it's a reasonable amount (basic check)
+    if [[ "$available_space" == "0" ]] || [[ "$available_space" == "-" ]]; then
+        print_warning "Storage ${STORAGE} appears to have no available space"
+        print_status "You may need to:"
+        print_status "1. Free up space on the storage"
+        print_status "2. Use a different storage"
+        print_status "3. Reduce the disk size"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Function to create container
 create_container() {
     print_status "Creating container ${CONTAINER_ID}..."
+    
+    # Check storage space first
+    if ! check_storage_space; then
+        print_error "Storage space check failed"
+        exit 1
+    fi
     
     # Build pct create command
     local create_cmd="pct create ${CONTAINER_ID} /var/lib/vz/template/cache/${TEMPLATE_NAME}"
@@ -229,6 +268,14 @@ create_container() {
         print_success "Container ${CONTAINER_ID} created successfully"
     else
         print_error "Failed to create container"
+        print_status "Common issues and solutions:"
+        print_status "1. Storage space: Check if ${STORAGE} has enough space"
+        print_status "2. LVM issues: Try using 'local' storage instead of 'local-lvm'"
+        print_status "3. Container ID: ID ${CONTAINER_ID} might already be in use"
+        print_status "4. Network: Check if IP ${IP_ADDRESS} is available"
+        print_status ""
+        print_status "To check storage: pvesm status"
+        print_status "To check container IDs: pct list"
         exit 1
     fi
 }
