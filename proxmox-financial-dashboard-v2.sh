@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 CONTAINER_ID="100"
 CONTAINER_NAME="financial-dashboard"
 TEMPLATE_NAME="debian-12-standard_12.12-1_amd64.tar.zst"
-STORAGE="local"
+STORAGE=""
 MEMORY="512"
 DISK_SIZE="2G"
 CPU_CORES="1"
@@ -68,6 +68,22 @@ check_template() {
     print_success "Template ${TEMPLATE_NAME} found"
 }
 
+# Function to detect available storage
+detect_storage() {
+    print_status "Detecting available storage for containers..."
+    
+    # Get available storage that supports containers
+    local available_storage=$(pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs)' | awk '{print $1}' | head -1)
+    
+    if [[ -n "$available_storage" ]]; then
+        STORAGE="$available_storage"
+        print_success "Detected storage: ${STORAGE}"
+    else
+        print_warning "Could not auto-detect storage. You'll need to specify manually."
+        STORAGE=""
+    fi
+}
+
 # Function to get user input
 get_user_input() {
     print_status "Financial Dashboard Container Setup"
@@ -106,6 +122,21 @@ get_user_input() {
         read -p "Enter Gateway (e.g., 192.168.1.1): " GATEWAY
     fi
     
+    # Storage Configuration
+    if [[ -z "$STORAGE" ]]; then
+        print_status "Available storage options:"
+        pvesm status --type dir,thin,lvm,zfs | grep -E '^(local|local-lvm|local-zfs)' | awk '{print "  " $1 " - " $2 " (" $3 ")"}'
+        echo
+        read -p "Enter Storage (e.g., local-lvm): " STORAGE
+        if [[ -z "$STORAGE" ]]; then
+            print_error "Storage is required"
+            exit 1
+        fi
+    else
+        read -p "Enter Storage (default: ${STORAGE}): " input_storage
+        STORAGE=${input_storage:-$STORAGE}
+    fi
+    
     # Resource Configuration
     read -p "Enter Memory (default: ${MEMORY}): " input_memory
     MEMORY=${input_memory:-$MEMORY}
@@ -121,6 +152,7 @@ get_user_input() {
     print_status "Container ID: ${CONTAINER_ID}"
     print_status "Container Name: ${CONTAINER_NAME}"
     print_status "Template: ${TEMPLATE_NAME}"
+    print_status "Storage: ${STORAGE}"
     print_status "Memory: ${MEMORY}"
     print_status "Disk: ${DISK_SIZE}"
     print_status "CPU Cores: ${CPU_CORES}"
@@ -359,6 +391,7 @@ main() {
     # Check prerequisites
     check_proxmox
     check_template
+    detect_storage
     
     # Get user input
     get_user_input
