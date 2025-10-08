@@ -201,6 +201,11 @@ fix_lvm_thin_pool() {
     if [[ "$STORAGE" == "local-lvm" ]]; then
         print_status "Checking LVM thin pool status..."
         
+        # Clear any LVM locks first
+        print_status "Clearing LVM locks..."
+        vgchange -ay pve 2>/dev/null || true
+        lvchange -ay pve/data 2>/dev/null || true
+        
         # Check if thin pool is in read-only mode
         local lv_status=$(lvdisplay pve/data 2>/dev/null | grep "LV Write Access" | awk '{print $4}')
         if [[ "$lv_status" == "read/write" ]]; then
@@ -217,8 +222,12 @@ fix_lvm_thin_pool() {
             print_warning "Could not reactivate LVM thin pool automatically"
         fi
         
+        # Try to repair the thin pool if needed
+        print_status "Attempting to repair LVM thin pool..."
+        lvconvert --repair pve/data 2>/dev/null || true
+        
         # Check status again
-        sleep 2
+        sleep 3
         local lv_status_after=$(lvdisplay pve/data 2>/dev/null | grep "LV Write Access" | awk '{print $4}')
         if [[ "$lv_status_after" == "read/write" ]]; then
             print_success "LVM thin pool is now writable"
@@ -318,16 +327,70 @@ create_container() {
     if eval "$create_cmd"; then
         print_success "Container ${CONTAINER_ID} created successfully"
     else
-        print_error "Failed to create container"
-        print_status "Common issues and solutions:"
-        print_status "1. Storage space: Check if ${STORAGE} has enough space"
-        print_status "2. LVM issues: Try using 'local' storage instead of 'local-lvm'"
-        print_status "3. Container ID: ID ${CONTAINER_ID} might already be in use"
-        print_status "4. Network: Check if IP ${IP_ADDRESS} is available"
-        print_status ""
-        print_status "To check storage: pvesm status"
-        print_status "To check container IDs: pct list"
-        exit 1
+        print_error "Failed to create container with first attempt"
+        
+        # Try alternative approach for LVM thin pool
+        if [[ "$STORAGE" == "local-lvm" ]]; then
+            print_status "Trying alternative LVM approach..."
+            
+            # Try with different container ID
+            local alt_id=$((CONTAINER_ID + 100))
+            local alt_cmd="pct create ${alt_id} /var/lib/vz/template/cache/${TEMPLATE_NAME}"
+            alt_cmd="${alt_cmd} --hostname ${CONTAINER_NAME}-alt"
+            alt_cmd="${alt_cmd} --password ${ROOT_PASSWORD}"
+            alt_cmd="${alt_cmd} --memory ${MEMORY}"
+            alt_cmd="${alt_cmd} --cores ${CPU_CORES}"
+            alt_cmd="${alt_cmd} --rootfs ${STORAGE}:${DISK_SIZE}"
+            alt_cmd="${alt_cmd} --net0 name=eth0,bridge=${BRIDGE}"
+            
+            # Add IP configuration if provided
+            if [[ -n "$IP_ADDRESS" ]]; then
+                alt_cmd="${alt_cmd},ip=${IP_ADDRESS}"
+                if [[ -n "$GATEWAY" ]]; then
+                    alt_cmd="${alt_cmd},gw=${GATEWAY}"
+                fi
+            else
+                alt_cmd="${alt_cmd},ip=dhcp"
+            fi
+            
+            # Add DNS servers
+            alt_cmd="${alt_cmd} --nameserver ${DNS_SERVERS}"
+            
+            # Add features
+            alt_cmd="${alt_cmd} --features nesting=1"
+            
+            # Add startup options
+            alt_cmd="${alt_cmd} --onboot 1"
+            
+            print_status "Trying alternative command: ${alt_cmd}"
+            
+            if eval "$alt_cmd"; then
+                print_success "Container ${alt_id} created successfully with alternative approach"
+                CONTAINER_ID=${alt_id}
+            else
+                print_error "Alternative approach also failed"
+                print_status "Common issues and solutions:"
+                print_status "1. Storage space: Check if ${STORAGE} has enough space"
+                print_status "2. LVM issues: Try using 'local' storage instead of 'local-lvm'"
+                print_status "3. Container ID: ID ${CONTAINER_ID} might already be in use"
+                print_status "4. Network: Check if IP ${IP_ADDRESS} is available"
+                print_status ""
+                print_status "To check storage: pvesm status"
+                print_status "To check container IDs: pct list"
+                exit 1
+            fi
+        else
+            print_error "Failed to create container"
+            print_status "Common issues and solutions:"
+            print_status "1. Storage space: Check if ${STORAGE} has enough space"
+            print_status "2. LVM issues: Try using 'local' storage instead of 'local-lvm'"
+            print_status "3. Container ID: ID ${CONTAINER_ID} might already be in use"
+            print_status "4. Network: Check if IP ${IP_ADDRESS} is available"
+            print_status ""
+            print_status "To check storage: pvesm status"
+            print_status "To check container IDs: pct list"
+            exit 1
+        fi
     fi
 }
 
