@@ -190,7 +190,9 @@ pct exec $CONTAINER_ID -- chmod 755 $INSTALL_DIR/data/user_tickers
 pct exec $CONTAINER_ID -- bash -c "cd $INSTALL_DIR && [ -f server.js ] && chmod 644 server.js || true"
 pct exec $CONTAINER_ID -- bash -c "cd $INSTALL_DIR && [ -f index.html ] && chmod 644 index.html || true"
 pct exec $CONTAINER_ID -- bash -c "cd $INSTALL_DIR && [ -f package.json ] && chmod 644 package.json || true"
-pct exec $CONTAINER_ID -- chmod 644 $INSTALL_DIR/data/*.json
+
+# Set permissions for JSON files that exist
+pct exec $CONTAINER_ID -- bash -c "cd $INSTALL_DIR/data && [ -f users.json ] && chmod 644 users.json || true"
 
 print_success "Permissions set"
 echo ""
