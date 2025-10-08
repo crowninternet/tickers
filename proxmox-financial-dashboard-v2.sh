@@ -2,7 +2,7 @@
 
 # Proxmox Container Template Installer for Financial Dashboard
 # Debian 12 Container Template: debian-12-standard_12.12-1_amd64.tar.zst
-# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/crowninternet/tickers/main/proxmox-financial-dashboard.sh)"
+# Usage: bash -c "$(curl -fsSL https://raw.githubusercontent.com/crowninternet/tickers/main/proxmox-financial-dashboard-v2.sh)"
 
 set -e
 

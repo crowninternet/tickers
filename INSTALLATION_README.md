@@ -7,7 +7,7 @@ This repository contains a fully self-contained Proxmox container installation s
 Run this single command on your Proxmox VE node:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/crowninternet/tickers/main/proxmox-financial-dashboard.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/crowninternet/tickers/main/proxmox-financial-dashboard-v2.sh)"
 ```
 
 ## Prerequisites
