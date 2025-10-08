@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Financial Dashboard - Fresh Installation Script for Proxmox
+# Financial Dashboard - Fresh Installation Script for Proxmox v7
 # Run this script from the Proxmox HOST (not in a container)
 # 
 # This script will:
@@ -11,7 +11,8 @@
 # 4. Configure systemd service
 # 5. Start dashboard automatically
 #
-# Usage: ./proxmox-financial-dashboard-fresh.sh
+# Usage: ./proxmox-financial-dashboard-v7.sh
+# Or: bash -c "$(curl -fsSL https://raw.githubusercontent.com/crowninternet/tickers/main/proxmox-financial-dashboard-v7.sh)"
 ################################################################################
 
 set -e
