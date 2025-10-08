@@ -91,7 +91,17 @@ get_user_input() {
     done
     
     # Network Configuration
-    read -p "Enter IP Address (e.g., 192.168.1.100/24): " IP_ADDRESS
+    while true; do
+        read -p "Enter IP Address with CIDR (e.g., 192.168.1.100/24): " IP_ADDRESS
+        if [[ -z "$IP_ADDRESS" ]]; then
+            break  # Allow empty for DHCP
+        elif [[ "$IP_ADDRESS" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+            break  # Valid CIDR format
+        else
+            print_error "Invalid IP format. Please use CIDR notation (e.g., 192.168.1.100/24)"
+        fi
+    done
+    
     if [[ -n "$IP_ADDRESS" ]]; then
         read -p "Enter Gateway (e.g., 192.168.1.1): " GATEWAY
     fi

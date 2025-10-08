@@ -33,7 +33,7 @@ The script will prompt you for:
 - **Container ID**: Unique identifier (default: 100)
 - **Container Name**: Human-readable name (default: financial-dashboard)
 - **Root Password**: Password for container root user
-- **IP Address**: Static IP with CIDR notation (e.g., 192.168.1.100/24)
+- **IP Address**: Static IP with CIDR notation (e.g., 192.168.1.100/24) - **REQUIRED format**
 - **Gateway**: Network gateway IP
 - **Memory**: RAM allocation (default: 512MB)
 - **Disk Size**: Storage allocation (default: 2GB)
