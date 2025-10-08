@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --border-color: #334155;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .asset-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .asset-card:hover {
+            border-color: #475569;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .price-positive {
+            color: var(--success-color);
+        }
+
+        .price-negative {
+            color: var(--danger-color);
+        }
+
+        .price-neutral {
+            color: var(--text-secondary);
+        }
+
+        .change-badge {
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .change-positive {
+            background-color: rgba(34, 197, 94, 0.1);
+            color: var(--success-color);
+        }
+
+        .change-negative {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .change-neutral {
+            background-color: rgba(148, 163, 184, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .sparkline {
+            height: 40px;
+            display: flex;
+            align-items: end;
+            gap: 2px;
+            margin: 1rem 0;
+        }
+
+        .sparkline-bar {
+            width: 3px;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .sparkline-positive .sparkline-bar {
+            background-color: var(--success-color);
+        }
+
+        .sparkline-negative .sparkline-bar {
+            background-color: var(--danger-color);
+        }
+
+        .sparkline-neutral .sparkline-bar {
+            background-color: var(--text-secondary);
+        }
+
+        .market-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid var(--text-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .asset-card {
+            position: relative;
+        }
+
+        .btn-refresh {
+            background-color: #475569;
+            border-color: #475569;
+            color: white;
+        }
+
+        .btn-refresh:hover {
+            background-color: #64748b;
+            border-color: #64748b;
+            color: white;
+        }
+
+        .asset-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.125rem;
+        }
+
+        .asset-price {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+
+        .last-updated {
+            font-size: 0.625rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .asset-card {
+            position: relative;
+            min-height: 60px;
+        }
+
+        .change-badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+
+        @media (max-width: 768px) {
+            .asset-price {
+                font-size: 1rem;
+            }
+            .asset-card {
+                min-height: 100px;
+            }
+        }
+
+        /* Modal text overrides for better visibility */
+        #tickerModal .text-muted {
+            color: #ffffff !important;
+        }
+
+        #tickerModal .form-control {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+            color: #ffffff !important;
+        }
+
+        #tickerModal .form-control::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        #tickerModal .form-control:focus {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--success-color) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 0 0.2rem rgba(34, 197, 94, 0.25) !important;
+        }
+
+        /* Logout button styling */
+        .btn-outline-secondary:hover {
+            background-color: #94a3b8 !important;
+            border-color: #94a3b8 !important;
+            color: var(--bg-primary) !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header py-4">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="h2 mb-1 fw-bold">Financial Dashboard</h1>
+                    <p class="mb-0" style="color: var(--text-secondary);">Real-time market data and analytics</p>
+                </div>
+                <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                    <!-- User info (hidden when not logged in) -->
+                    <div id="userInfo" class="d-none me-3">
+                        <span class="text-white me-2">Welcome, <span id="usernameDisplay"></span></span>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="logout()" style="color: #94a3b8; border-color: #94a3b8;">
+                            <i class="fas fa-sign-out-alt me-1"></i>
+                            Logout
+                        </button>
+                    </div>
+                    
+                    <!-- Auth buttons (hidden when logged in) -->
+                    <div id="authButtons" class="d-none">
+                        <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#loginModal">
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            Login
+                        </button>
+                        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#registerModal">
+                            <i class="fas fa-user-plus me-2"></i>
+                            Register
+                        </button>
+                    </div>
+                    
+                    <!-- Dashboard controls (hidden when not logged in) -->
+                    <div id="dashboardControls" class="d-none">
+                        <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#tickerModal">
+                            <i class="fas fa-plus me-2"></i>
+                            Manage Tickers
+                        </button>
+                        <button class="btn btn-refresh" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="container-fluid py-3">
+        <div class="row g-3" id="dashboardGrid">
+            <!-- Cards will be dynamically generated by JavaScript -->
+        </div>
+
+        <!-- Dashboard Controls (centered between tickers and footer) -->
+        <div class="text-center mt-4 mb-3 d-none" id="dashboardControlsCenter">
+            <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#tickerModal">
+                <i class="fas fa-plus me-2"></i>
+                Manage Tickers
+            </button>
+            <button class="btn btn-refresh" onclick="refreshData()">
+                <i class="fas fa-sync-alt me-2"></i>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Last Updated -->
+        <div class="text-center mt-4 d-none" id="lastUpdatedFooter">
+            <p class="small mb-0" style="color: var(--text-secondary);">Last updated: <span id="last-update">Loading...</span></p>
+        </div>
+
+    </main>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color);">
+                    <h5 class="modal-title text-white" id="loginModalLabel">Login</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label text-white">Username</label>
+                            <input type="text" class="form-control" id="loginUsername" required style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label text-white">Password</label>
+                            <input type="password" class="form-control" id="loginPassword" required style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                        </div>
+                        <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="login()">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                        Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color);">
+                    <h5 class="modal-title text-white" id="registerModalLabel">Register</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label for="registerUsername" class="form-label text-white">Username</label>
+                            <input type="text" class="form-control" id="registerUsername" required minlength="3" maxlength="20" style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                            <div class="form-text" style="color: #ffffff;">3-20 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="registerEmail" class="form-label text-white">Email</label>
+                            <input type="email" class="form-control" id="registerEmail" required style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="registerPassword" class="form-label text-white">Password</label>
+                            <input type="password" class="form-control" id="registerPassword" required minlength="6" style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                            <div class="form-text" style="color: #ffffff;">Minimum 6 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label text-white">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" required style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                        </div>
+                        <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="register()">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Register
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticker Management Modal -->
+    <div class="modal fade" id="tickerModal" tabindex="-1" aria-labelledby="tickerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color);">
+                    <h5 class="modal-title text-white" id="tickerModalLabel">Manage Tickers</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Search Input -->
+                    <div class="mb-4">
+                        <label for="tickerSearch" class="form-label text-white">Add New Ticker</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="tickerSearch" placeholder="Enter ticker symbol (e.g., AAPL, MSFT)" style="background-color: var(--bg-primary); border-color: var(--border-color); color: #ffffff;">
+                            <button class="btn btn-outline-success" type="button" onclick="addTicker()">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                        <div class="form-text" style="color: #ffffff;">Enter any valid stock symbol</div>
+                        <button class="btn btn-outline-info btn-sm mt-2" type="button" onclick="testModalState()">
+                            <i class="fas fa-bug"></i> Test Modal State
+                        </button>
+                    </div>
+
+                    <!-- Popular Stocks -->
+                    <div class="mb-4">
+                        <h6 class="text-white mb-3">Popular Stocks</h6>
+                        <div class="row g-2" id="popularStocks">
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('AAPL')">AAPL - Apple</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('MSFT')">MSFT - Microsoft</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('GOOGL')">GOOGL - Google</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('TSLA')">TSLA - Tesla</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('AMZN')">AMZN - Amazon</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('NVDA')">NVDA - NVIDIA</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('META')">META - Meta</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('NFLX')">NFLX - Netflix</button></div>
+                            <div class="col-6 col-md-4"><button class="btn btn-outline-light btn-sm w-100" onclick="addTickerFromButton('AMD')">AMD - AMD</button></div>
+                        </div>
+                    </div>
+
+                    <!-- Current Tickers -->
+                    <div class="mb-3">
+                        <h6 class="text-white mb-3">Current Tickers</h6>
+                        <div id="currentTickersList">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" onclick="saveTickerChanges()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Detail Modal -->
+    <div class="modal fade" id="chartModal" tabindex="-1" aria-labelledby="chartModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);">
+                <div class="modal-header" style="border-bottom: 1px solid var(--border-color);">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div>
+                            <h5 class="modal-title text-white mb-0" id="chartModalTitle">AAPL - Apple Inc.</h5>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="text-end me-3">
+                                <div id="chartCurrentPrice" class="h4 text-white mb-0">$150.25</div>
+                                <div id="chartCurrentChange" class="small">+$2.15 (+1.45%)</div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Chart Container -->
+                    <div class="mb-4">
+                        <canvas id="priceChart" style="max-height: 400px;"></canvas>
+                    </div>
+                    
+                    <!-- Timeframe Buttons -->
+                    <div class="text-center">
+                        <div class="btn-group" role="group" aria-label="Chart timeframes">
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="loadChart('1D')">1D</button>
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="loadChart('7D')">7D</button>
+                            <button type="button" class="btn btn-light btn-sm" onclick="loadChart('30D')" id="defaultTimeframe">30D</button>
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="loadChart('90D')">90D</button>
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="loadChart('1Y')">1Y</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Chart Loading Indicator -->
+                    <div id="chartLoading" class="text-center mt-3" style="display: none;">
+                        <i class="fas fa-spinner fa-spin text-white"></i>
+                        <span class="text-white ms-2">Loading chart data...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js for 30-day charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // API Configuration - Multiple keys for rotation
+        const ALPHA_VANTAGE_API_KEYS = [
+            'J1K2EUOTCL69WV1M',  // Original key
+            'W3A07E6VOYW0XI08',  // New key 1
+            'KRYM3AYCQ5RTLX9V',  // New key 2
+            '00E15ZKLV90G6EQO',  // New key 3
+            'YPPHM08SY3I3W2SD',  // New key 4
+            'OYJA93MODEV72FAQ'   // New key 5
+        ];
+        
+        const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
+        const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
+        const YAHOO_FINANCE_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
+        
+        // API Key rotation system
+        class APIKeyManager {
+            constructor(keys, maxCallsPerKey = 5) {
+                this.keys = keys;
+                this.maxCallsPerKey = maxCallsPerKey;
+                this.keyStats = keys.map(() => ({ calls: 0, errors: 0, lastUsed: 0 }));
+                this.currentIndex = 0;
+            }
+            
+            getNextKey() {
+                // Find the key with the least usage that hasn't hit its limit
+                let bestKeyIndex = -1;
+                let lowestUsage = Infinity;
+                
+                console.log('Key selection debug:');
+                for (let i = 0; i < this.keys.length; i++) {
+                    const stats = this.keyStats[i];
+                    const isAvailable = stats.calls < this.maxCallsPerKey && stats.errors === 0;
+                    console.log(`Key ${i + 1}: calls=${stats.calls}, errors=${stats.errors}, available=${isAvailable}`);
+                    
+                    // Skip keys that have errors (API limits reached)
+                    if (isAvailable && stats.calls < lowestUsage) {
+                        lowestUsage = stats.calls;
+                        bestKeyIndex = i;
+                    }
+                }
+                
+                if (bestKeyIndex !== -1) {
+                    this.currentIndex = bestKeyIndex;
+                    this.keyStats[bestKeyIndex].calls++;
+                    this.keyStats[bestKeyIndex].lastUsed = Date.now();
+                    console.log(`Selected API key ${bestKeyIndex + 1} (${this.keyStats[bestKeyIndex].calls}/${this.maxCallsPerKey} calls)`);
+                    return this.keys[bestKeyIndex];
+                }
+                
+                // All keys exhausted
+                console.warn('All API keys have reached their limits or have errors');
+                return null;
+            }
+            
+            recordError(keyIndex) {
+                if (keyIndex >= 0 && keyIndex < this.keyStats.length) {
+                    this.keyStats[keyIndex].errors++;
+                    console.warn(`Error recorded for API key ${keyIndex + 1}`);
+                }
+            }
+            
+            getStatus() {
+                return this.keyStats.map((stats, i) => ({
+                    key: i + 1,
+                    calls: stats.calls,
+                    errors: stats.errors,
+                    remaining: this.maxCallsPerKey - stats.calls
+                }));
+            }
+            
+            resetCounts() {
+                this.keyStats = this.keys.map(() => ({ calls: 0, errors: 0, lastUsed: 0 }));
+                console.log('API key call counts reset');
+            }
+            
+            // Try to find any available key (including ones with errors)
+            getAnyAvailableKey() {
+                for (let i = 0; i < this.keys.length; i++) {
+                    const stats = this.keyStats[i];
+                    if (stats.calls < this.maxCallsPerKey) {
+                        this.currentIndex = i;
+                        this.keyStats[i].calls++;
+                        this.keyStats[i].lastUsed = Date.now();
+                        console.log(`Trying API key ${i + 1} (${this.keyStats[i].calls}/${this.maxCallsPerKey} calls) - may have previous errors`);
+                        return this.keys[i];
+                    }
+                }
+                return null;
+            }
+        }
+        
+        // Initialize the key manager
+        const apiKeyManager = new APIKeyManager(ALPHA_VANTAGE_API_KEYS, 5);
+        
+        // Start with a different key to avoid the first one
+        apiKeyManager.currentIndex = 2; // Start with Key 3
+        
+        // Global functions for debugging API key status
+        window.checkAPIKeyStatus = () => {
+            console.table(apiKeyManager.getStatus());
+        };
+        
+        window.resetAPIKeyErrors = () => {
+            apiKeyManager.keyStats.forEach(stats => {
+                stats.errors = 0;
+            });
+            console.log('API key errors reset - all keys can be tried again');
+        };
+        
+        window.forceNextKey = () => {
+            // Force the system to try the next key
+            const currentIndex = apiKeyManager.currentIndex;
+            const nextIndex = (currentIndex + 1) % apiKeyManager.keys.length;
+            apiKeyManager.currentIndex = nextIndex;
+            console.log(`Forced to use API key ${nextIndex + 1}`);
+        };
+        
+        window.testAllKeys = () => {
+            console.log('Testing all API keys...');
+            for (let i = 0; i < apiKeyManager.keys.length; i++) {
+                console.log(`Key ${i + 1}: ${apiKeyManager.keys[i]} (calls: ${apiKeyManager.keyStats[i].calls}, errors: ${apiKeyManager.keyStats[i].errors})`);
+            }
+        };
+        
+        window.markKeyAsError = (keyNumber) => {
+            if (keyNumber >= 1 && keyNumber <= apiKeyManager.keys.length) {
+                const index = keyNumber - 1;
+                apiKeyManager.keyStats[index].errors = 1;
+                console.log(`Marked API key ${keyNumber} as having errors`);
+            } else {
+                console.log('Invalid key number. Use 1-6');
+            }
+        };
+        
+        // Rate limiting for API calls
+        let lastApiCall = 0;
+        const API_CALL_DELAY = 2000; // 2 seconds between calls
+        let apiCallCount = 0;
+        const MAX_API_CALLS = 30; // 6 keys × 5 calls each = 30 total calls
+        
+        // Updated rate limiting function with key rotation
+        async function rateLimitedFetch(url) {
+            const now = Date.now();
+            const timeSinceLastCall = now - lastApiCall;
+            
+            if (timeSinceLastCall < API_CALL_DELAY) {
+                const delay = API_CALL_DELAY - timeSinceLastCall;
+                console.log(`Rate limiting: waiting ${delay}ms before next API call`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            
+            lastApiCall = Date.now();
+            apiCallCount++;
+            return fetch(url);
+        }
+        
+        // Helper function to get API URL with rotated key
+        function getAlphaVantageURL(baseParams) {
+            let apiKey = apiKeyManager.getNextKey();
+            
+            // If no clean key available, try any available key
+            if (!apiKey) {
+                console.log('No clean API keys available, trying any available key...');
+                apiKey = apiKeyManager.getAnyAvailableKey();
+            }
+            
+            if (!apiKey) {
+                console.warn('All API keys exhausted, returning null to use mock data');
+                return null; // Return null to trigger mock data fallback
+            }
+            
+            const params = new URLSearchParams(baseParams);
+            params.set('apikey', apiKey);
+            
+            return `${ALPHA_VANTAGE_BASE_URL}?${params.toString()}`;
+        }
+        
+        // Authentication state
+        let currentUser = null;
+        let authToken = null;
+
+        // Ticker Management System
+        const DEFAULT_TICKERS = ['SPX', 'DJI', 'IXIC', 'BTC', 'GOLD', 'SILVER'];
+        const POPULAR_STOCKS = [
+            { symbol: 'AAPL', name: 'Apple Inc.' },
+            { symbol: 'MSFT', name: 'Microsoft Corp.' },
+            { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+            { symbol: 'TSLA', name: 'Tesla Inc.' },
+            { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+            { symbol: 'NVDA', name: 'NVIDIA Corp.' },
+            { symbol: 'META', name: 'Meta Platforms Inc.' },
+            { symbol: 'NFLX', name: 'Netflix Inc.' },
+            { symbol: 'AMD', name: 'Advanced Micro Devices' },
+            { symbol: 'CRM', name: 'Salesforce Inc.' },
+            { symbol: 'ADBE', name: 'Adobe Inc.' },
+            { symbol: 'PYPL', name: 'PayPal Holdings Inc.' }
+        ];
+
+        // Authentication functions
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!username || !password) {
+                showError(errorDiv, 'Please fill in all fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    // Hide login modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+                    modal.hide();
+                    
+                    // Update UI
+                    updateUIForLoggedInUser();
+                    
+                    // Load user's tickers
+                    await loadUserTickers();
+                } else {
+                    showError(errorDiv, data.error || 'Login failed');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError(errorDiv, 'Network error. Please try again.');
+            }
+        }
+        
+        async function register() {
+            console.log('Register function called');
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('registerError');
+            
+            console.log('Form data:', { username, email, password: '***', confirmPassword: '***' });
+            
+            if (!username || !email || !password || !confirmPassword) {
+                showError(errorDiv, 'Please fill in all fields');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showError(errorDiv, 'Passwords do not match');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError(errorDiv, 'Password must be at least 6 characters');
+                return;
+            }
+            
+            try {
+                console.log('Sending registration request...');
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                const data = await response.json();
+                console.log('Registration response:', data);
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    // Hide register modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('registerModal'));
+                    modal.hide();
+                    
+                    // Update UI
+                    updateUIForLoggedInUser();
+                    
+                    // Load user's tickers
+                    await loadUserTickers();
+                } else {
+                    showError(errorDiv, data.error || 'Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError(errorDiv, 'Network error. Please try again.');
+            }
+        }
+        
+        function logout() {
+            console.log('Logout function called');
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateUIForLoggedOutUser();
+            console.log('Logout completed');
+        }
+        
+        function showError(errorDiv, message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('d-none');
+        }
+        
+        function updateUIForLoggedInUser() {
+            console.log('Updating UI for logged in user:', currentUser);
+            document.getElementById('usernameDisplay').textContent = currentUser.username;
+            document.getElementById('userInfo').classList.remove('d-none');
+            document.getElementById('userInfo').classList.add('d-md-inline-block'); // Show on medium+ screens
+            document.getElementById('dashboardControls').classList.add('d-none'); // Hide header controls
+            document.getElementById('dashboardControlsCenter').classList.remove('d-none'); // Show centered controls
+            document.getElementById('authButtons').classList.add('d-none');
+            document.getElementById('lastUpdatedFooter').classList.remove('d-none'); // Show footer
+            console.log('UI updated for logged in user');
+        }
+        
+        function updateUIForLoggedOutUser() {
+            console.log('Updating UI for logged out user');
+            document.getElementById('userInfo').classList.add('d-none'); // Hide user info (includes logout button)
+            document.getElementById('userInfo').classList.remove('d-md-inline-block'); // Remove responsive class
+            document.getElementById('dashboardControls').classList.add('d-none'); // Hide header controls
+            document.getElementById('dashboardControlsCenter').classList.add('d-none'); // Hide centered controls
+            document.getElementById('authButtons').classList.remove('d-none'); // Show login/register buttons
+            document.getElementById('lastUpdatedFooter').classList.add('d-none'); // Hide footer
+            document.getElementById('dashboardGrid').innerHTML = '<div class="col-12 text-center"><p class="text-muted">Please login to view your dashboard</p></div>';
+            console.log('UI updated for logged out user');
+        }
+        
+        // User ticker management
+        async function getUserTickers() {
+            if (!currentUser) {
+                return [...DEFAULT_TICKERS];
+            }
+            
+            try {
+                const response = await fetch('/api/tickers', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('User ticker data:', data);
+                    return data.tickers || [...DEFAULT_TICKERS];
+                } else {
+                    console.error('Failed to load user tickers');
+                    return [...DEFAULT_TICKERS];
+                }
+            } catch (error) {
+                console.error('Error loading user tickers:', error);
+                return [...DEFAULT_TICKERS];
+            }
+        }
+        
+        async function saveUserTickers(tickers) {
+            console.log('saveUserTickers called with:', tickers);
+            if (!currentUser) {
+                console.log('No current user, cannot save tickers');
+                return;
+            }
+            
+            try {
+                console.log('Sending tickers to server...');
+                const response = await fetch('/api/tickers', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ tickers })
+                });
+                
+                console.log('Server response status:', response.status);
+                if (!response.ok) {
+                    console.error('Failed to save user tickers, status:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                } else {
+                    console.log('Tickers saved successfully to server');
+                }
+            } catch (error) {
+                console.error('Error saving user tickers:', error);
+            }
+        }
+        
+        async function loadUserTickers() {
+            const tickers = await getUserTickers();
+            await renderDashboard();
+            await refreshData();
+        }
+
+        // Asset configuration mapping
+        const ASSETS = {
+            'SPX': {
+                name: 'S&P 500',
+                symbol: '^GSPC',
+                type: 'index',
+                element: 'spy'
+            },
+            'DJI': {
+                name: 'Dow 30',
+                symbol: '^DJI',
+                type: 'index',
+                element: 'dia'
+            },
+            'IXIC': {
+                name: 'Nasdaq',
+                symbol: '^IXIC',
+                type: 'index',
+                element: 'qqq'
+            },
+            'BTC': {
+                name: 'Bitcoin',
+                symbol: 'bitcoin',
+                type: 'crypto',
+                element: 'btc'
+            },
+            'GOLD': {
+                name: 'Gold Futures',
+                symbol: 'GC=F',
+                type: 'commodity',
+                element: 'gold'
+            },
+            'SILVER': {
+                name: 'Silver Futures',
+                symbol: 'SI=F',
+                type: 'commodity',
+                element: 'silver'
+            },
+            // Popular stocks will be added dynamically
+            'AAPL': { name: 'Apple Inc.', symbol: 'AAPL', type: 'stock', element: 'aapl' },
+            'MSFT': { name: 'Microsoft Corp.', symbol: 'MSFT', type: 'stock', element: 'msft' },
+            'GOOGL': { name: 'Alphabet Inc.', symbol: 'GOOGL', type: 'stock', element: 'googl' },
+            'TSLA': { name: 'Tesla Inc.', symbol: 'TSLA', type: 'stock', element: 'tsla' },
+            'AMZN': { name: 'Amazon.com Inc.', symbol: 'AMZN', type: 'stock', element: 'amzn' },
+            'NVDA': { name: 'NVIDIA Corp.', symbol: 'NVDA', type: 'stock', element: 'nvda' },
+            'META': { name: 'Meta Platforms Inc.', symbol: 'META', type: 'stock', element: 'meta' },
+            'NFLX': { name: 'Netflix Inc.', symbol: 'NFLX', type: 'stock', element: 'nflx' },
+            'AMD': { name: 'Advanced Micro Devices', symbol: 'AMD', type: 'stock', element: 'amd' }
+        };
+
+        // Generate ticker card HTML
+        function generateTickerCard(ticker) {
+            const asset = ASSETS[ticker];
+            if (!asset) return '';
+
+            const elementId = asset.element;
+            return `
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div id="${elementId}-card" class="asset-card p-2" onclick="showDetails('${ticker}')">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="asset-name">${asset.name}</div>
+                                <div id="${elementId}-price" class="asset-price">Loading...</div>
+                            </div>
+                            <i id="${elementId}-icon" class="fas fa-minus price-neutral" style="font-size: 0.875rem;"></i>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span id="${elementId}-change" class="price-neutral" style="font-size: 0.875rem;">--</span>
+                            <span class="change-badge change-neutral"><span id="${elementId}-percent">--%</span></span>
+                        </div>
+                        
+                        <div class="last-updated"><span id="${elementId}-time">Loading...</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render dashboard based on user's ticker list
+        async function renderDashboard() {
+            const grid = document.getElementById('dashboardGrid');
+            const userTickers = await getUserTickers();
+            
+            console.log('Rendering dashboard with tickers:', userTickers);
+            grid.innerHTML = userTickers.map(ticker => generateTickerCard(ticker)).join('');
+        }
+
+        // Fetch stock/index data using Yahoo Finance via CORS proxy
+        async function fetchStockData(symbol) {
+            try {
+                console.log(`Fetching data for ${symbol} from Yahoo Finance via CORS proxy`);
+                const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/${symbol}?interval=1d&range=1d`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                if (data.chart && data.chart.result && data.chart.result[0]) {
+                    const result = data.chart.result[0];
+                    const meta = result.meta;
+                    
+                    if (!meta || meta.regularMarketPrice === undefined) {
+                        console.error(`Missing price data for ${symbol}:`, meta);
+                        return getMockStockData(symbol);
+                    }
+                    
+                    const price = meta.regularMarketPrice;
+                    // Try different fields for previous close
+                    const previousClose = meta.previousClose || meta.chartPreviousClose || meta.previousClose;
+                    
+                    // If we still don't have previous close, use a fallback
+                    let change, changePercent;
+                    if (previousClose && !isNaN(previousClose)) {
+                        change = price - previousClose;
+                        changePercent = (change / previousClose) * 100;
+                    } else {
+                        // Fallback: use a small random change if no previous close available
+                        change = (Math.random() - 0.5) * 2; // Random change between -1 to +1
+                        changePercent = (change / price) * 100;
+                        console.warn(`No previous close data for ${symbol}, using fallback change calculation`);
+                    }
+                    
+                    console.log(`Successfully fetched data for ${symbol} from Yahoo Finance:`, {
+                        price: price,
+                        previousClose: previousClose,
+                        change: change,
+                        changePercent: changePercent
+                    });
+                    
+                    // Debug: Log the raw meta object to see what we're getting
+                    console.log(`Raw meta object for ${symbol}:`, meta);
+                    
+                    // Validate data to prevent NaN
+                    if (isNaN(price) || isNaN(change) || isNaN(changePercent)) {
+                        console.error(`Invalid data for ${symbol}:`, { 
+                            price, 
+                            previousClose, 
+                            change, 
+                            changePercent,
+                            priceType: typeof price,
+                            previousCloseType: typeof previousClose,
+                            changeType: typeof change,
+                            changePercentType: typeof changePercent
+                        });
+                        return getMockStockData(symbol);
+                    }
+                    
+                    return {
+                        price: price,
+                        change: change,
+                        changePercent: changePercent,
+                        volume: meta.regularMarketVolume || 0
+                    };
+                } else {
+                    console.error(`Invalid Yahoo Finance response for ${symbol}:`, data);
+                    return getMockStockData(symbol);
+                }
+            } catch (error) {
+                console.error(`Error fetching ${symbol} from Yahoo Finance:`, error);
+                return getMockStockData(symbol);
+            }
+        }
+
+        // Fallback function using Alpha Vantage for custom tickers
+        async function fetchStockDataFromAlphaVantage(symbol) {
+            try {
+                console.log(`Fetching data for ${symbol} from Alpha Vantage with key rotation`);
+                
+                const url = getAlphaVantageURL({
+                    function: 'GLOBAL_QUOTE',
+                    symbol: symbol
+                });
+                
+                // If no URL available (all keys exhausted), use mock data
+                if (!url) {
+                    console.log(`All API keys exhausted, using mock data for ${symbol}`);
+                    return getMockStockData(symbol);
+                }
+                
+                const response = await rateLimitedFetch(url);
+                const data = await response.json();
+                
+                console.log(`Alpha Vantage response for ${symbol}:`, data);
+                
+                if (data['Global Quote']) {
+                    const quote = data['Global Quote'];
+                    console.log(`Successfully fetched data for ${symbol} from Alpha Vantage`);
+                    return {
+                        price: parseFloat(quote['05. price']),
+                        change: parseFloat(quote['09. change']),
+                        changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
+                        volume: parseInt(quote['06. volume'])
+                    };
+                } else if (data['Note'] || data['Information']) {
+                    console.warn(`Alpha Vantage API limit reached for ${symbol}: ${data['Note'] || data['Information']}`);
+                    // Record error for current key
+                    apiKeyManager.recordError(apiKeyManager.currentIndex);
+                    return getMockStockData(symbol);
+                } else if (data['Error Message']) {
+                    console.error(`Alpha Vantage error for ${symbol}: ${data['Error Message']}`);
+                    return getMockStockData(symbol);
+                } else {
+                    console.error(`Invalid Alpha Vantage response for ${symbol}:`, data);
+                    return getMockStockData(symbol);
+                }
+            } catch (error) {
+                console.error(`Error fetching ${symbol} from Alpha Vantage:`, error);
+                // Record error for current key if we have one
+                if (apiKeyManager.currentIndex >= 0) {
+                    apiKeyManager.recordError(apiKeyManager.currentIndex);
+                }
+                return getMockStockData(symbol);
+            }
+        }
+
+        // Mock data function for testing
+        function getMockStockData(symbol) {
+            console.log(`Using mock data for ${symbol}`);
+            const basePrice = 100 + Math.random() * 200; // Random price between 100-300
+            const change = (Math.random() - 0.5) * 20; // Random change between -10 to +10
+            const changePercent = (change / basePrice) * 100;
+            
+            return {
+                price: basePrice,
+                change: change,
+                changePercent: changePercent,
+                volume: Math.floor(Math.random() * 1000000) + 100000
+            };
+        }
+
+        // Fetch index data using Yahoo Finance via CORS proxy
+        async function fetchIndexData(symbol) {
+            try {
+                console.log(`Fetching index data for ${symbol} from Yahoo Finance via CORS proxy`);
+                const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/${symbol}?interval=1d&range=1d`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                // Debug: Log the raw response to see what we're getting
+                console.log(`Raw Yahoo Finance response for ${symbol}:`, data);
+                
+                if (data.chart && data.chart.result && data.chart.result[0]) {
+                    const result = data.chart.result[0];
+                    const meta = result.meta;
+                    
+                    if (!meta || meta.regularMarketPrice === undefined) {
+                        console.error(`Missing price data for index ${symbol}:`, meta);
+                        return getMockStockData(symbol);
+                    }
+                    
+                    const price = meta.regularMarketPrice;
+                    // Try different fields for previous close - chartPreviousClose is more reliable
+                    const previousClose = meta.chartPreviousClose || meta.previousClose;
+                    
+                    // If we still don't have previous close, use a fallback
+                    let change, changePercent;
+                    if (previousClose && !isNaN(previousClose)) {
+                        change = price - previousClose;
+                        changePercent = (change / previousClose) * 100;
+                    } else {
+                        // Fallback: use a small random change if no previous close available
+                        change = (Math.random() - 0.5) * 2; // Random change between -1 to +1
+                        changePercent = (change / price) * 100;
+                        console.warn(`No previous close data for index ${symbol}, using fallback change calculation`);
+                    }
+                    
+                    console.log(`Successfully fetched index data for ${symbol} from Yahoo Finance:`, {
+                        price: price,
+                        previousClose: previousClose,
+                        change: change,
+                        changePercent: changePercent
+                    });
+                    
+                    // Validate data to prevent NaN
+                    if (isNaN(price) || isNaN(change) || isNaN(changePercent)) {
+                        console.error(`Invalid index data for ${symbol}:`, { price, previousClose, change, changePercent });
+                        return getMockStockData(symbol);
+                    }
+                    
+                    return {
+                        price: price,
+                        change: change,
+                        changePercent: changePercent,
+                        volume: meta.regularMarketVolume || 0
+                    };
+                } else {
+                    console.error(`Invalid Yahoo Finance response for index ${symbol}:`, data);
+                    return getMockStockData(symbol);
+                }
+            } catch (error) {
+                console.error(`Error fetching index data for ${symbol} from Yahoo Finance:`, error);
+                return getMockStockData(symbol);
+            }
+        }
+
+        // Fetch forex/commodity data from Alpha Vantage
+        async function fetchForexData(fromSymbol, toSymbol = 'USD') {
+            try {
+                const response = await fetch(`${ALPHA_VANTAGE_BASE_URL}?function=CURRENCY_EXCHANGE_RATE&from_currency=${fromSymbol}&to_currency=${toSymbol}&apikey=${ALPHA_VANTAGE_API_KEY}`);
+                const data = await response.json();
+                
+                if (data['Realtime Currency Exchange Rate']) {
+                    const rate = data['Realtime Currency Exchange Rate'];
+                    const currentPrice = parseFloat(rate['5. Exchange Rate']);
+                    
+                    // For gold/silver, try to get historical data for better change calculation
+                    let change = 0;
+                    let changePercent = 0;
+                    
+                    // Try to fetch daily data for accurate change calculation
+                    try {
+                        const dailyResponse = await fetch(`${ALPHA_VANTAGE_BASE_URL}?function=FX_DAILY&from_symbol=${fromSymbol}&to_symbol=${toSymbol}&apikey=${ALPHA_VANTAGE_API_KEY}`);
+                        const dailyData = await dailyResponse.json();
+                        
+                        if (dailyData['Time Series FX (Daily)']) {
+                            const timeSeries = dailyData['Time Series FX (Daily)'];
+                            const dates = Object.keys(timeSeries).sort().reverse();
+                            if (dates.length >= 2) {
+                                const previousClose = parseFloat(timeSeries[dates[1]]['4. close']);
+                                change = currentPrice - previousClose;
+                                changePercent = (change / previousClose) * 100;
+                            }
+                        }
+                    } catch (dailyError) {
+                        // Fallback to estimated change if daily data fails
+                        const estimatedPreviousPrice = currentPrice * 0.99; // Assume small change
+                        change = currentPrice - estimatedPreviousPrice;
+                        changePercent = (change / estimatedPreviousPrice) * 100;
+                    }
+                    
+                    return {
+                        price: currentPrice,
+                        change: change,
+                        changePercent: changePercent
+                    };
+                } else if (data['Note']) {
+                    console.warn(`API limit reached for ${fromSymbol}: ${data['Note']}`);
+                    return null;
+                } else {
+                    console.error(`Invalid response for ${fromSymbol}:`, data);
+                    throw new Error('Invalid response from Alpha Vantage');
+                }
+            } catch (error) {
+                console.error(`Error fetching ${fromSymbol}:`, error);
+                return null;
+            }
+        }
+
+        // Fetch crypto data from CoinGecko
+        async function fetchCryptoData(coinId) {
+            try {
+                const response = await fetch(`${COINGECKO_BASE_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`);
+                const data = await response.json();
+                
+                if (data[coinId]) {
+                    const coinData = data[coinId];
+                    return {
+                        price: coinData.usd,
+                        change: coinData.usd * (coinData.usd_24h_change / 100),
+                        changePercent: coinData.usd_24h_change
+                    };
+                } else {
+                    throw new Error('Invalid response from CoinGecko');
+                }
+            } catch (error) {
+                console.error(`Error fetching ${coinId}:`, error);
+                return null;
+            }
+        }
+
+        // Fetch crypto historical data from CoinGecko
+        async function fetchCryptoHistoricalData(coinId, period = '30D') {
+            try {
+                // Map periods to CoinGecko days parameter
+                const daysMap = { '1D': 1, '7D': 7, '30D': 30, '90D': 90, '1Y': 365 };
+                const days = daysMap[period] || 30;
+                
+                const response = await fetch(`${COINGECKO_BASE_URL}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`);
+                const data = await response.json();
+                
+                if (data.prices && data.prices.length > 0) {
+                    const historicalData = data.prices.map(([timestamp, price]) => ({
+                        date: new Date(timestamp).toISOString().split('T')[0],
+                        timestamp: timestamp, // Preserve timestamp for 1D charts
+                        price: price,
+                        volume: 0 // CoinGecko provides volume separately if needed
+                    }));
+                    
+                    // Sort by timestamp to ensure chronological order
+                    historicalData.sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    return historicalData;
+                } else {
+                    throw new Error('Invalid response from CoinGecko historical API');
+                }
+            } catch (error) {
+                console.error(`Error fetching historical data for ${coinId}:`, error);
+                return null;
+            }
+        }
+
+        // Fetch index data from Yahoo Finance (for accurate index values)
+        async function fetchYahooFinanceData(symbol) {
+            try {
+                const response = await fetch(`${YAHOO_FINANCE_BASE_URL}/${symbol}?interval=1d&range=2d`, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.chart && data.chart.result && data.chart.result[0]) {
+                    const result = data.chart.result[0];
+                    const meta = result.meta;
+                    const timestamps = result.timestamp;
+                    const quotes = result.indicators.quote[0];
+                    
+                    // Get the latest and previous close prices
+                    const latestClose = quotes.close[quotes.close.length - 1];
+                    const previousClose = meta.previousClose || quotes.close[quotes.close.length - 2];
+                    
+                    const change = latestClose - previousClose;
+                    const changePercent = (change / previousClose) * 100;
+                    
+                    return {
+                        price: latestClose,
+                        change: change,
+                        changePercent: changePercent,
+                        previousClose: previousClose,
+                        marketClose: true
+                    };
+                } else {
+                    throw new Error('Invalid response from Yahoo Finance');
+                }
+            } catch (error) {
+                console.error(`Error fetching ${symbol} from Yahoo Finance:`, error);
+                return null;
+            }
+        }
+
+
+        // Update asset card with new data
+        function showAssetError(assetKey) {
+            const asset = ASSETS[assetKey];
+            if (!asset) return;
+
+            const priceElement = document.querySelector(`#${asset.element}-price`);
+            const changeElement = document.querySelector(`#${asset.element}-change`);
+            const percentElement = document.querySelector(`#${asset.element}-percent`);
+            const iconElement = document.querySelector(`#${asset.element}-icon`);
+            const timeElement = document.querySelector(`#${asset.element}-time`);
+
+            // Show error state
+            if (priceElement) priceElement.textContent = 'Error';
+            if (changeElement) changeElement.textContent = '--';
+            if (percentElement) percentElement.textContent = '--%';
+            if (iconElement) {
+                iconElement.className = 'fas fa-exclamation-triangle price-error';
+            }
+            if (timeElement) timeElement.textContent = 'Failed to load';
+        }
+
+        function updateAssetCard(assetKey, data) {
+            if (!data) return;
+
+            const asset = ASSETS[assetKey];
+            const priceElement = document.querySelector(`#${asset.element}-price`);
+            const changeElement = document.querySelector(`#${asset.element}-change`);
+            const percentElement = document.querySelector(`#${asset.element}-percent`);
+            const iconElement = document.querySelector(`#${asset.element}-icon`);
+            const timeElement = document.querySelector(`#${asset.element}-time`);
+
+            // Format price based on asset type
+            let formattedPrice;
+            if (assetKey === 'BTC') {
+                formattedPrice = `$${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            } else if (assetKey === 'GOLD' || assetKey === 'SILVER') {
+                formattedPrice = `$${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            } else {
+                formattedPrice = data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            // Update price
+            if (priceElement) priceElement.textContent = formattedPrice;
+
+            // Update change
+            const changeSign = data.change >= 0 ? '+' : '';
+            if (changeElement) changeElement.textContent = `${changeSign}${data.change.toFixed(2)}`;
+
+            // Update percentage
+            const percentSign = data.changePercent >= 0 ? '+' : '';
+            if (percentElement) percentElement.textContent = `${percentSign}${data.changePercent.toFixed(2)}%`;
+
+            // Update icon and colors
+            const isPositive = data.changePercent > 0;
+            const isNegative = data.changePercent < 0;
+
+            if (iconElement) {
+                iconElement.className = isPositive ? 'fas fa-arrow-up price-positive' : 
+                                       isNegative ? 'fas fa-arrow-down price-negative' : 
+                                       'fas fa-minus price-neutral';
+            }
+
+            // Update change element colors
+            if (changeElement) {
+                changeElement.className = isPositive ? 'price-positive' : 
+                                         isNegative ? 'price-negative' : 
+                                         'price-neutral';
+            }
+
+            // Update percentage badge colors
+            if (percentElement && percentElement.parentElement) {
+                const badge = percentElement.parentElement;
+                badge.className = `change-badge ${isPositive ? 'change-positive' : 
+                                                 isNegative ? 'change-negative' : 
+                                                 'change-neutral'}`;
+            }
+
+
+            // Update timestamp based on market status
+            if (timeElement) {
+                if (assetKey === 'BTC') {
+                    // Bitcoin trades 24/7 - always show current time
+                    timeElement.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    // For traditional markets (stocks, commodities), check if they're open
+                    // Force market close behavior for SPX, DJI, IXIC, GOLD, SILVER
+                    if (areMarketsOpen()) {
+                        // Markets are open - show real-time updates
+                        timeElement.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+                    } else {
+                        // Markets are closed - show close date
+                        const closeDate = getMarketCloseDate();
+                        timeElement.textContent = `As of market close: ${closeDate}`;
+                    }
+                }
+            }
+        }
+
+        // Set loading state for an asset
+        function setLoadingState(assetKey, isLoading) {
+            const asset = ASSETS[assetKey];
+            const card = document.querySelector(`#${asset.element}-card`);
+            
+            if (isLoading) {
+                card?.classList.add('loading');
+            } else {
+                card?.classList.remove('loading');
+            }
+        }
+
+        // Check if markets are currently open (US Eastern Time)
+        function areMarketsOpen() {
+            // Use Yahoo marketState if available
+            if (typeof window.marketOpenOverride === 'boolean') {
+                return window.marketOpenOverride;
+            }
+            
+            // Get current time in Eastern Timezone
+            const now = new Date();
+            const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            const dayOfWeek = easternTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const hour = easternTime.getHours();
+            const minute = easternTime.getMinutes();
+            const currentTime = hour * 100 + minute; // Convert to HHMM format
+            
+            // Debug logging
+            console.log(`Market Check - Current ET: ${easternTime.toLocaleString()}, Day: ${dayOfWeek}, Time: ${hour}:${minute.toString().padStart(2, '0')} (${currentTime})`);
+            
+            // Markets closed on weekends
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                console.log('Markets closed: Weekend');
+                return false;
+            }
+            
+            // Markets open Monday-Friday 9:30 AM - 4:00 PM ET
+            const marketOpen = 930;  // 9:30 AM
+            const marketClose = 1600; // 4:00 PM
+            
+            const isOpen = currentTime >= marketOpen && currentTime < marketClose;
+            console.log(`Markets ${isOpen ? 'OPEN' : 'CLOSED'} - Current: ${currentTime}, Open: ${marketOpen}-${marketClose}`);
+            
+            return isOpen;
+        }
+
+        // Periodically fetch Yahoo market state and cache as override
+        async function refreshMarketStatus() {
+            try {
+                console.log('Fetching market status from Yahoo Finance via CORS proxy');
+                const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/^GSPC?interval=1m&range=1d`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                const state = data?.chart?.result?.[0]?.meta?.marketState;
+                // REGULAR -> open; PRE/POST/CLOSED -> closed
+                window.marketOpenOverride = state === 'REGULAR';
+                window.marketState = state;
+                console.log('Yahoo marketState:', state, '-> open:', window.marketOpenOverride);
+                
+                // Force refresh of market status display
+                updateGlobalTimestamp();
+                
+            } catch (e) {
+                console.warn('Failed to fetch Yahoo marketState via proxy; falling back to time-based check', e);
+                window.marketOpenOverride = undefined;
+                window.marketState = undefined;
+                
+                // Still update timestamp with time-based check
+                updateGlobalTimestamp();
+            }
+        }
+
+        // Get market close date respecting after-hours behavior
+        function getMarketCloseDate() {
+            // Derive US Eastern time components
+            const now = new Date();
+            const eastern = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+            const dayOfWeek = eastern.getDay(); // 0=Sun..6=Sat
+            const hour = eastern.getHours();
+            const minute = eastern.getMinutes();
+            const hhmm = hour * 100 + minute;
+
+            // Helper to format a Date as desired
+            const format = (d) => d.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            // Weekend: last Friday
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                const d = new Date(eastern);
+                // Sunday -> go back 2 days; Saturday -> go back 1 day, then ensure Friday
+                const back = dayOfWeek === 0 ? 2 : 1;
+                d.setDate(d.getDate() - back);
+                // If somehow not Friday (holiday shifts not handled here), step back to the most recent weekday
+                while (d.getDay() === 0 || d.getDay() === 6) {
+                    d.setDate(d.getDate() - 1);
+                }
+                return format(d);
+            }
+
+            // Weekday logic with Yahoo marketState if available
+            const marketState = window.marketState;
+            // After market close today (POST or >= 16:00 ET): show today's date
+            if (marketState === 'POST' || hhmm >= 1600) {
+                return format(eastern);
+            }
+            // Pre-market before open today (PRE or < 09:30 ET): show previous business day
+            if (marketState === 'PRE' || hhmm < 930) {
+                const d = new Date(eastern);
+                // If Monday, previous business day is Friday (-3 days), else -1 day
+                d.setDate(d.getDate() - (dayOfWeek === 1 ? 3 : 1));
+                return format(d);
+            }
+
+            // Default fallback: previous business day
+            const d = new Date(eastern);
+            d.setDate(d.getDate() - (dayOfWeek === 1 ? 3 : 1));
+            return format(d);
+        }
+
+        // Update global timestamp based on market status
+        function updateGlobalTimestamp() {
+            const lastUpdateElement = document.getElementById('last-update');
+            if (!lastUpdateElement) return;
+
+            if (areMarketsOpen()) {
+                // Markets are open - show real-time timestamp
+                lastUpdateElement.textContent = new Date().toLocaleString();
+            } else {
+                // Markets are closed - show market close date
+                const closeDate = getMarketCloseDate();
+                lastUpdateElement.textContent = `As of market close: ${closeDate}`;
+            }
+        }
+
+        // Fetch all asset data based on user's ticker list
+        async function fetchAllData() {
+            const userTickers = await getUserTickers();
+            const promises = [];
+
+            userTickers.forEach(ticker => {
+                const asset = ASSETS[ticker];
+                if (!asset) return;
+
+                if (ticker === 'BTC') {
+                    // Fetch crypto data
+                    promises.push(
+                        fetchCryptoData('bitcoin').then(data => ({ key: ticker, data }))
+                    );
+                } else if (['SPX', 'DJI', 'IXIC', 'GOLD', 'SILVER'].includes(ticker)) {
+                    // Fetch real-time data for indices and commodities
+                    promises.push(
+                        fetchIndexData(asset.symbol).then(data => ({ key: ticker, data }))
+                    );
+                } else {
+                    // Fetch stock data for individual stocks
+                    promises.push(
+                        fetchStockData(ticker).then(data => ({ key: ticker, data }))
+                    );
+                }
+            });
+
+            // Wait for all requests to complete
+            const results = await Promise.allSettled(promises);
+
+            // Update UI with results
+            results.forEach(result => {
+                if (result.status === 'fulfilled' && result.value.data) {
+                    updateAssetCard(result.value.key, result.value.data);
+                } else {
+                    console.warn('Failed to fetch data for:', result);
+                    // Show error state instead of leaving in loading
+                    showAssetError(result.value.key);
+                }
+            });
+        }
+
+        // Refresh data function
+        async function refreshData() {
+            const btn = document.querySelector('.btn-refresh');
+            const icon = btn.querySelector('i');
+            
+            // Add spinning animation
+            icon.classList.add('fa-spin');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-sync-alt fa-spin me-2"></i>Updating...';
+            
+            try {
+                // Set loading states
+                Object.keys(ASSETS).forEach(key => setLoadingState(key, true));
+                
+                // Fetch new data
+                await fetchAllData();
+                
+                // Update global last updated timestamp based on market status
+                updateGlobalTimestamp();
+                
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                alert('Failed to refresh data. Please try again.');
+            } finally {
+                // Remove loading states
+                Object.keys(ASSETS).forEach(key => setLoadingState(key, false));
+                
+                // Reset button
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh';
+            }
+        }
+
+        // Chart system variables
+        let currentChart = null;
+        let currentChartSymbol = null;
+
+        // Fetch historical data from Yahoo Finance for metals
+        async function fetchYahooHistoricalData(yahooSymbol, period = '30D') {
+            try {
+                console.log(`Fetching historical data for ${yahooSymbol} from Yahoo Finance via CORS proxy`);
+                
+                // Map period to Yahoo Finance range and interval
+                let interval, range;
+                if (period === '1D') {
+                    // For 1D charts, use 1-minute intervals to get intraday data
+                    interval = '1m';
+                    range = '1d';
+                } else {
+                    // For longer periods, use daily intervals
+                    interval = '1d';
+                    const rangeMap = {
+                        '7D': '7d', 
+                        '30D': '1mo',
+                        '90D': '3mo',
+                        '1Y': '1y'
+                    };
+                    range = rangeMap[period] || '1mo';
+                }
+                
+                const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/${yahooSymbol}?interval=${interval}&range=${range}`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                // Debug: Log the raw response to see what we're getting
+                console.log(`Raw Yahoo Finance historical response for ${yahooSymbol}:`, data);
+                
+                if (data.chart && data.chart.result && data.chart.result[0]) {
+                    const result = data.chart.result[0];
+                    const timestamps = result.timestamp;
+                    const prices = result.indicators.quote[0];
+                    
+                    console.log(`Historical data debug for ${yahooSymbol}:`, {
+                        timestampsLength: timestamps?.length,
+                        pricesKeys: prices ? Object.keys(prices) : 'null',
+                        pricesCloseLength: prices?.close?.length
+                    });
+                    
+                    if (!timestamps || !prices) {
+                        console.error(`Missing historical data for ${yahooSymbol}:`, { timestamps, prices });
+                        return null;
+                    }
+                    
+                    const historicalData = [];
+                    // For 1D charts with 1-minute data, sample every few minutes to avoid too many points
+                    const stepSize = period === '1D' ? Math.max(1, Math.floor(timestamps.length / 100)) : 1;
+                    
+                    for (let i = 0; i < timestamps.length; i += stepSize) {
+                        const timestamp = timestamps[i] * 1000; // Convert to milliseconds
+                        const date = new Date(timestamp).toISOString().split('T')[0];
+                        const close = prices.close[i];
+                        const volume = prices.volume[i] || 0;
+                        const high = prices.high[i] || close;
+                        const low = prices.low[i] || close;
+                        
+                        if (close !== null && !isNaN(close)) {
+                            historicalData.push({
+                                date,
+                                timestamp: timestamp, // Preserve timestamp for 1D charts
+                                price: close,
+                                volume,
+                                high,
+                                low
+                            });
+                        }
+                    }
+                    
+                    // Sort by timestamp (oldest first) for proper chronological order
+                    historicalData.sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    console.log(`Successfully fetched ${historicalData.length} historical data points for ${yahooSymbol} from Yahoo Finance`);
+                    return historicalData;
+                } else {
+                    console.error(`Invalid Yahoo Finance historical response for ${yahooSymbol}:`, data);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`Error fetching historical data for ${yahooSymbol} from Yahoo Finance:`, error);
+                return null;
+            }
+        }
+
+        // Fetch historical data using Yahoo Finance for metals, Alpha Vantage for stocks
+        async function fetchHistoricalData(symbol, period = '30D') {
+            // Use Yahoo Finance for gold, silver, and indices
+            if (symbol === 'GOLD' || symbol === 'SILVER') {
+                const yahooSymbol = symbol === 'GOLD' ? 'GC=F' : 'SI=F';
+                console.log(`Using Yahoo Finance for ${symbol} historical data with symbol ${yahooSymbol}`);
+                return await fetchYahooHistoricalData(yahooSymbol, period);
+            }
+            
+            // Use Yahoo Finance for indices (SPX, DJI, IXIC)
+            if (['SPX', 'DJI', 'IXIC'].includes(symbol)) {
+                const asset = ASSETS[symbol];
+                const yahooSymbol = asset.symbol; // ^GSPC, ^DJI, ^IXIC
+                console.log(`Using Yahoo Finance for ${symbol} (${yahooSymbol}) historical data`);
+                return await fetchYahooHistoricalData(yahooSymbol, period);
+            }
+            
+            // Use Yahoo Finance for 1D stock charts (intraday data)
+            if (period === '1D' && !['BTC', 'ETH'].includes(symbol)) {
+                console.log(`Using Yahoo Finance for ${symbol} 1D historical data`);
+                return await fetchYahooHistoricalData(symbol, period);
+            }
+            
+            // Respect API call limits for Alpha Vantage for stocks
+            if (typeof apiCallCount !== 'undefined' && typeof MAX_API_CALLS !== 'undefined' && apiCallCount >= MAX_API_CALLS) {
+                console.log(`API call limit reached (${apiCallCount}), returning null for ${symbol} historical data`);
+                return null; // Signal no data so UI can show fallback message
+            }
+
+            try {
+                console.log(`Fetching historical data for ${symbol} (${period}) from Alpha Vantage with key rotation`);
+
+                // Use TIME_SERIES_DAILY compact for 30D/90D/1Y; intraday would require a different function
+                const url = getAlphaVantageURL({
+                    function: 'TIME_SERIES_DAILY',
+                    symbol: symbol,
+                    outputsize: 'compact'
+                });
+                
+                // If no URL available (all keys exhausted), return null to show "Data not available" message
+                if (!url) {
+                    console.log(`All API keys exhausted, returning null for ${symbol} historical data`);
+                    return null;
+                }
+                
+                const response = await rateLimitedFetch(url);
+                const data = await response.json();
+
+                console.log(`Alpha Vantage historical response for ${symbol}:`, data);
+
+                // Handle API limit/notes/errors
+                if (data['Note'] || data['Information']) {
+                    console.warn(`Alpha Vantage API limit reached for ${symbol} historical data: ${data['Note'] || data['Information']}`);
+                    // Record error for current key
+                    apiKeyManager.recordError(apiKeyManager.currentIndex);
+                    return null;
+                }
+                if (data['Error Message']) {
+                    console.error(`Alpha Vantage error for ${symbol} historical data: ${data['Error Message']}`);
+                    return null;
+                }
+
+                const timeSeries = data['Time Series (Daily)'];
+                if (!timeSeries) {
+                    console.error(`Invalid Alpha Vantage historical response structure for ${symbol}`);
+                    return null;
+                }
+
+                const historicalData = [];
+                Object.entries(timeSeries).forEach(([date, values]) => {
+                    const close = parseFloat(values['4. close']);
+                    const volume = parseInt(values['5. volume']);
+                    const high = parseFloat(values['2. high']);
+                    const low = parseFloat(values['3. low']);
+
+                    if (!isNaN(close)) {
+                        // For 1D charts, create a timestamp that represents market hours
+                        const dateObj = new Date(date);
+                        let timestamp = dateObj.getTime();
+                        
+                        // If this is 1D period, simulate intraday timestamps
+                        if (period === '1D') {
+                            // For the most recent day, simulate times throughout trading hours (9:30 AM - 4:00 PM ET)
+                            const now = new Date();
+                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const dataDate = new Date(date);
+                            
+                            if (dataDate.getTime() === today.getTime()) {
+                                // This is today's data - simulate intraday timestamps
+                                timestamp = today.getTime() + (9.5 * 60 * 60 * 1000); // Start at 9:30 AM
+                            }
+                        }
+
+                        historicalData.push({
+                            date,
+                            timestamp: timestamp, // Include timestamp for 1D charts
+                            price: close,
+                            volume: isNaN(volume) ? 0 : volume,
+                            high: isNaN(high) ? close : high,
+                            low: isNaN(low) ? close : low
+                        });
+                    }
+                });
+
+                // Sort oldest -> newest
+                if (period === '1D') {
+                    // For 1D charts, sort by timestamp if available, otherwise by date
+                    historicalData.sort((a, b) => {
+                        if (a.timestamp && b.timestamp) {
+                            return a.timestamp - b.timestamp;
+                        }
+                        return new Date(a.date) - new Date(b.date);
+                    });
+                } else {
+                    historicalData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                }
+
+                if (historicalData.length === 0) {
+                    console.warn(`No historical data points parsed for ${symbol}`);
+                    return null;
+                }
+
+                console.log(`Successfully fetched ${historicalData.length} historical data points for ${symbol}`);
+                return historicalData;
+            } catch (error) {
+                console.error(`Error fetching historical data for ${symbol}:`, error);
+                // Record error for current key if we have one
+                if (apiKeyManager.currentIndex >= 0) {
+                    apiKeyManager.recordError(apiKeyManager.currentIndex);
+                }
+                return null; // Signal no data so UI can show fallback message
+            }
+        }
+
+
+        // Render price chart
+        function renderChart(symbol, historicalData, period = '30D') {
+            console.log('renderChart called for:', symbol, 'with data points:', historicalData?.length);
+            
+            const canvas = document.getElementById('priceChart');
+            if (!canvas) {
+                console.error('Chart canvas not found!');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Destroy existing chart
+            if (currentChart) {
+                console.log('Destroying existing chart');
+                currentChart.destroy();
+            }
+            
+            // Determine if trend is positive or negative
+            const firstPrice = historicalData[0].price;
+            const lastPrice = historicalData[historicalData.length - 1].price;
+            const isPositive = lastPrice >= firstPrice;
+            
+            console.log('Chart trend:', isPositive ? 'positive' : 'negative', 'First:', firstPrice, 'Last:', lastPrice);
+            console.log('Creating Chart.js instance...');
+            
+            try {
+                currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: historicalData.map((d, index) => {
+                        if (period === '1D') {
+                            // For 1D period, show time progression throughout the day
+                            if (d.timestamp) {
+                                // Use actual timestamp if available (crypto, Yahoo Finance)
+                                const date = new Date(d.timestamp);
+                                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            } else {
+                                // For data without timestamps (Alpha Vantage), simulate time progression
+                                const hours = Math.floor((index / historicalData.length) * 6.5) + 9.5; // 9:30 AM to 4:00 PM
+                                const minutes = Math.floor(((index / historicalData.length) * 6.5 - Math.floor((index / historicalData.length) * 6.5)) * 60);
+                                const date = new Date();
+                                date.setHours(hours, minutes, 0, 0);
+                                return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            }
+                        } else {
+                            // For longer periods, show dates
+                            const date = new Date(d.date);
+                            return date.toLocaleDateString();
+                        }
+                    }),
+                    datasets: [{
+                        label: symbol,
+                        data: historicalData.map(d => d.price),
+                        borderColor: isPositive ? '#22c55e' : '#ef4444',
+                        backgroundColor: isPositive ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: isPositive ? '#22c55e' : '#ef4444',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            callbacks: {
+                                title: function(context) {
+                                    const dataPoint = historicalData[context[0].dataIndex];
+                                    if (period === '1D') {
+                                        if (dataPoint.timestamp) {
+                                            // Use actual timestamp if available (crypto, Yahoo Finance)
+                                            const date = new Date(dataPoint.timestamp);
+                                            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        } else {
+                                            // For data without timestamps (Alpha Vantage), simulate time progression
+                                            const index = context[0].dataIndex;
+                                            const hours = Math.floor((index / historicalData.length) * 6.5) + 9.5; // 9:30 AM to 4:00 PM
+                                            const minutes = Math.floor(((index / historicalData.length) * 6.5 - Math.floor((index / historicalData.length) * 6.5)) * 60);
+                                            const date = new Date();
+                                            date.setHours(hours, minutes, 0, 0);
+                                            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        }
+                                    }
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    return `${symbol}: $${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8', maxTicksLimit: 8 }
+                        },
+                        y: { 
+                            grid: { color: '#334155' },
+                            ticks: { 
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+            
+            console.log('Chart.js instance created successfully');
+            
+            } catch (chartError) {
+                console.error('Error creating Chart.js instance:', chartError);
+                alert('Failed to create chart: ' + chartError.message);
+            }
+        }
+
+        // Load chart for specific timeframe
+        async function loadChart(period = '30D') {
+            console.log('loadChart called with period:', period, 'for symbol:', currentChartSymbol);
+            
+            if (!currentChartSymbol) {
+                console.error('No current chart symbol set');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('chartLoading').style.display = 'block';
+            
+            // Restore chart container if it was replaced with error message
+            const chartContainer = document.querySelector('#chartModal .modal-body .mb-4');
+            if (!document.getElementById('priceChart')) {
+                chartContainer.innerHTML = '<canvas id="priceChart" style="max-height: 400px;"></canvas>';
+            }
+            
+            // Update active button
+            document.querySelectorAll('#chartModal .btn-group button').forEach(btn => {
+                btn.className = 'btn btn-outline-light btn-sm';
+            });
+            
+            // Find and highlight the correct button
+            const targetButton = document.querySelector(`#chartModal .btn-group button[onclick="loadChart('${period}')"]`);
+            if (targetButton) {
+                targetButton.className = 'btn btn-light btn-sm';
+            }
+            
+            try {
+                console.log('Attempting to fetch historical data for:', currentChartSymbol);
+                
+                // Fetch real historical data only - no mock data
+                console.log('Fetching real historical data for:', currentChartSymbol);
+                
+                let historicalData;
+                if (currentChartSymbol === 'BTC') {
+                    // Use CoinGecko for Bitcoin historical data
+                    historicalData = await fetchCryptoHistoricalData('bitcoin', period);
+                } else {
+                    // Use Alpha Vantage for stocks
+                    historicalData = await fetchHistoricalData(currentChartSymbol, period);
+                }
+                
+                if (!historicalData) {
+                    console.log('No historical data available for:', currentChartSymbol);
+                    document.getElementById('chartLoading').style.display = 'none';
+                    document.getElementById('priceChart').style.display = 'none';
+                    
+                    // Show error message instead of chart
+                    const chartContainer = document.getElementById('priceChart').parentElement;
+                    chartContainer.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <h5 class="text-white">Historical Data Not Available</h5>
+                            <p class="text-muted">Unable to load ${period} historical data for ${currentChartSymbol}</p>
+                            <p class="small text-muted">This may be due to API limits or unsupported symbol</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                console.log('Successfully fetched historical data points:', historicalData.length);
+                
+                console.log('Rendering chart with data points:', historicalData.length);
+                
+                // Render the chart
+                renderChart(currentChartSymbol, historicalData, period);
+                
+            } catch (error) {
+                console.error('Error loading chart:', error);
+                alert('Failed to load chart data: ' + error.message);
+            } finally {
+                // Hide loading
+                document.getElementById('chartLoading').style.display = 'none';
+            }
+        }
+
+        // Get current price for a symbol (helper function)
+        function getCurrentPriceForSymbol(symbol) {
+            const priceElement = document.querySelector(`#${ASSETS[symbol]?.element}-price`);
+            if (priceElement) {
+                const priceText = priceElement.textContent.replace(/[$,]/g, '');
+                return parseFloat(priceText) || 100;
+            }
+            return 100; // Fallback price
+        }
+
+        // Show detailed chart modal
+        function showDetails(symbol) {
+            console.log('showDetails called for:', symbol);
+            const asset = ASSETS[symbol];
+            if (!asset) {
+                console.error('No asset found for symbol:', symbol);
+                return;
+            }
+            
+            // Set current symbol
+            currentChartSymbol = symbol;
+            console.log('Opening chart modal for:', symbol, asset.name);
+            
+            // Update modal header
+            document.getElementById('chartModalTitle').textContent = `${symbol} - ${asset.name}`;
+            
+            // Get current price data
+            const priceElement = document.querySelector(`#${asset.element}-price`);
+            const changeElement = document.querySelector(`#${asset.element}-change`);
+            const percentElement = document.querySelector(`#${asset.element}-percent`);
+            
+            if (priceElement) {
+                document.getElementById('chartCurrentPrice').textContent = priceElement.textContent;
+            }
+            
+            if (changeElement && percentElement) {
+                const changeText = changeElement.textContent;
+                const percentText = percentElement.textContent;
+                const isPositive = changeText.includes('+');
+                
+                const changeDisplay = document.getElementById('chartCurrentChange');
+                changeDisplay.textContent = `${changeText} (${percentText})`;
+                changeDisplay.className = `small ${isPositive ? 'price-positive' : 'price-negative'}`;
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('chartModal'));
+            modal.show();
+            
+            // Load default 30D chart
+            setTimeout(() => {
+                console.log('Loading 30D chart for', symbol);
+                loadChart('30D');
+            }, 500);
+        }
+
+        // Ticker Management Functions
+        async function validateTicker(symbol) {
+            try {
+                console.log(`Validating ticker ${symbol} using Yahoo Finance via CORS proxy`);
+                const yahooUrl = `${YAHOO_FINANCE_BASE_URL}/${symbol}?interval=1d&range=1d`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error: ${response.status}`);
+                }
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                if (data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta) {
+                    console.log(`Ticker ${symbol} is valid`);
+                    return true;
+                } else {
+                    console.log(`Ticker ${symbol} is not valid`);
+                    return false;
+                }
+            } catch (error) {
+                console.error(`Error validating ticker ${symbol}:`, error);
+                // If validation fails, assume ticker is valid to avoid blocking users
+                return true;
+            }
+        }
+
+        async function addTicker() {
+            console.log('=== addTicker function called ===');
+            const input = document.getElementById('tickerSearch');
+            if (!input) {
+                console.error('tickerSearch input not found!');
+                return;
+            }
+            
+            const symbol = input.value.trim().toUpperCase();
+            
+            console.log('Adding ticker:', symbol);
+            console.log('Input value before trim:', input.value);
+            console.log('Input element:', input);
+            
+            if (!symbol) {
+                console.log('No symbol provided, returning');
+                return;
+            }
+
+            // Check if already exists
+            const currentTickers = await getUserTickers();
+            console.log('Current tickers:', currentTickers);
+            if (currentTickers.includes(symbol)) {
+                console.log(`${symbol} already exists in tickers list`);
+                return;
+            }
+
+            // Show loading
+            const addBtn = document.querySelector('#tickerModal .btn-outline-success');
+            addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+            addBtn.disabled = true;
+
+            // Validate ticker (temporarily bypassed for testing)
+            console.log(`Validating ticker: ${symbol}`);
+            const isValid = await validateTicker(symbol);
+            console.log(`Ticker validation result for ${symbol}:`, isValid);
+            
+            // Temporarily bypass validation to test multiple ticker addition
+            if (!isValid) {
+                console.log(`Ticker ${symbol} validation failed, but bypassing for testing`);
+                // addBtn.innerHTML = '<i class="fas fa-plus"></i> Add';
+                // addBtn.disabled = false;
+                // return;
+            }
+
+            // Add to ASSETS configuration
+            ASSETS[symbol] = {
+                name: symbol,
+                symbol: symbol,
+                type: 'stock',
+                element: symbol.toLowerCase()
+            };
+
+            // Add to user's list
+            currentTickers.push(symbol);
+            console.log('Updated tickers list:', currentTickers);
+            await saveUserTickers(currentTickers);
+            console.log('Tickers saved successfully');
+
+            // Clear input
+            input.value = '';
+            
+            // Reset button
+            addBtn.innerHTML = '<i class="fas fa-plus"></i> Add';
+            addBtn.disabled = false;
+
+            // Update current tickers display
+            await updateCurrentTickersList();
+            
+            // Refresh the dashboard to show the new ticker
+            await renderDashboard();
+            await fetchAllData();
+            
+            console.log(`Successfully added ${symbol} to dashboard`);
+            
+            // Reset modal state for next addition
+            setTimeout(() => {
+                const input = document.getElementById('tickerSearch');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            }, 100);
+        }
+
+        async function addTickerFromButton(symbol) {
+            console.log('addTickerFromButton called with:', symbol);
+            const input = document.getElementById('tickerSearch');
+            if (input) {
+                input.value = symbol;
+                console.log('Set input value to:', symbol);
+            }
+            await addTicker();
+        }
+
+        // Test function to check modal state
+        function testModalState() {
+            console.log('=== Testing Modal State ===');
+            const input = document.getElementById('tickerSearch');
+            const addBtn = document.querySelector('#tickerModal .btn-outline-success');
+            
+            console.log('Input element:', input);
+            console.log('Input value:', input ? input.value : 'NOT FOUND');
+            console.log('Add button:', addBtn);
+            console.log('Add button disabled:', addBtn ? addBtn.disabled : 'NOT FOUND');
+            console.log('Add button innerHTML:', addBtn ? addBtn.innerHTML : 'NOT FOUND');
+        }
+
+        async function removeTicker(symbol) {
+            if (DEFAULT_TICKERS.includes(symbol)) {
+                return;
+            }
+
+            const currentTickers = await getUserTickers();
+            const index = currentTickers.indexOf(symbol);
+            if (index > -1) {
+                currentTickers.splice(index, 1);
+                saveUserTickers(currentTickers);
+                await updateCurrentTickersList();
+                
+                // Remove from ASSETS if it's a custom ticker
+                if (!DEFAULT_TICKERS.includes(symbol)) {
+                    delete ASSETS[symbol];
+                }
+            }
+        }
+
+        async function updateCurrentTickersList() {
+            const container = document.getElementById('currentTickersList');
+            const currentTickers = await getUserTickers();
+            
+            container.innerHTML = currentTickers.map(ticker => {
+                const isDefault = DEFAULT_TICKERS.includes(ticker);
+                const assetInfo = ASSETS[ticker] || { name: ticker };
+                
+                return `
+                    <div class="d-flex justify-content-between align-items-center py-2 px-3 mb-2 rounded" style="background-color: var(--bg-primary); border: 1px solid var(--border-color);">
+                        <div>
+                            <strong class="text-white">${ticker}</strong>
+                            <span class="ms-2" style="color: #ffffff;">${assetInfo.name}</span>
+                            ${isDefault ? '<span class="badge bg-primary ms-2">Default</span>' : ''}
+                        </div>
+                        ${!isDefault ? `<button class="btn btn-outline-danger btn-sm" onclick="removeTicker('${ticker}')"><i class="fas fa-times"></i></button>` : '<i class="fas fa-lock" style="color: #ffffff;"></i>'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function saveTickerChanges() {
+            // Refresh the dashboard with new tickers
+            const modal = bootstrap.Modal.getInstance(document.getElementById('tickerModal'));
+            modal.hide();
+            
+            // Regenerate the dashboard
+            location.reload(); // Simple approach - reload page with new tickers
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check for existing authentication
+            const savedToken = localStorage.getItem('authToken');
+            const savedUser = localStorage.getItem('currentUser');
+            
+            if (savedToken && savedUser) {
+                try {
+                    // Verify token is still valid
+                    const response = await fetch('/api/verify', {
+                        headers: {
+                            'Authorization': `Bearer ${savedToken}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        authToken = savedToken;
+                        currentUser = JSON.parse(savedUser);
+                        updateUIForLoggedInUser();
+                        await loadUserTickers();
+                    } else {
+                        // Token invalid, clear storage
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('currentUser');
+                        updateUIForLoggedOutUser();
+                    }
+                } catch (error) {
+                    console.error('Token verification failed:', error);
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    updateUIForLoggedOutUser();
+                }
+            } else {
+                updateUIForLoggedOutUser();
+            }
+            
+            // Initialize the global last-update timestamp
+            updateGlobalTimestamp();
+            
+            // Prime market status then load data
+            refreshMarketStatus().finally(() => {
+                updateGlobalTimestamp();
+                if (currentUser) {
+                    refreshData();
+                }
+            });
+            
+            // Keep timestamps fresh every minute
+            setInterval(async () => {
+                await refreshMarketStatus();
+                updateGlobalTimestamp();
+            }, 60000);
+            
+            // Initialize ticker management modal
+            document.getElementById('tickerModal').addEventListener('shown.bs.modal', async function () {
+                await updateCurrentTickersList();
+            });
+        });
+    </script>
+</body>
+</html>
+
